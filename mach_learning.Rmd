@@ -10,11 +10,6 @@ library(tidyverse)
 library(rpart)
 library(ggplot2)
 ```
-
-```{r}
-setwd("C:/R/Machine_Learning")
-```
-
 Lendo o banco de dados
 ```{r}
 carros <- read_csv("Car_Purchasing_Data.csv")
