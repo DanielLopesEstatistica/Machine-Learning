@@ -1,0 +1,264 @@
+---
+title: "Machine_Learning"
+author: "Daniel Lopes"
+date: "2022-10-14"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(rpart)
+library(ggplot2)
+```
+
+```{r}
+setwd("C:/R/Machine_Learning")
+```
+
+Lendo o banco de dados
+```{r}
+carros <- read_csv("Car_Purchasing_Data.csv")
+```
+
+Selecionando apenas variáveis úteis e limpando o banco de dados
+```{r}
+carros <- carros %>% select(!c(1,2,3)) %>% mutate(Gender = ifelse(Gender == 0, "M", "F"))
+
+```
+
+Dividindo o banco de dados em dois: um para treino e o outro para teste
+```{r}
+linhas <- sample(1:nrow(carros), nrow(carros)*0.65)
+
+treino_carros <- carros[linhas,]
+teste_carros <- carros[-linhas,]
+```
+
+```{r}
+mod_carros <- rpart(Gender~. , data = treino_carros)
+result_carros <- predict(mod_carros, teste_carros, type = "class") 
+table(teste_carros$Gender, result_carros)
+```
+
+```{r}
+pessoas <- read_csv("weight-height.csv")
+```
+
+```{r}
+linhas2 <- sample(1:nrow(pessoas), nrow(pessoas)*0.65)
+
+treino_pessoas <- pessoas[linhas2,]
+teste_pessoas <- pessoas[-linhas2,]
+```
+
+
+```{r}
+mod_pessoas <- rpart(Gender~. , data = treino_pessoas)
+result_pessoas <- predict(mod_pessoas, teste_pessoas, type = "class")
+table(teste_pessoas$Gender, result_pessoas)
+```
+
+```{r}
+real <- data.frame(t(c("N", 158/2.54, 65*2.208)))
+
+names(real) <- c("Gender", "Height", "Weight")
+
+real$Height <- as.numeric(real$Height) 
+real$Weight <- as.numeric(real$Height)
+
+predict(mod_pessoas, real, type = "class")
+```
+
+```{r}
+library(neuralnet)
+
+nncompute <- neuralnet::compute
+```
+
+```{r}
+nnpessoas <- pessoas %>% 
+  mutate(Gender = ifelse(Gender == "Male", 1, 0))
+```
+
+```{r}
+linhas3 <- sample(1:nrow(nnpessoas), nrow(nnpessoas)*0.65)
+
+nntreino_pessoas <- nnpessoas[linhas3,]
+nnteste_pessoas <- nnpessoas[-linhas3,]
+```
+
+```{r}
+model1 <- neuralnet(Gender ~ ., data = nntreino_pessoas, hidden = 5, threshold = 0.05)
+```
+
+```{r}
+plot(model1)
+```
+
+```{r}
+nnprevisao_pessoas <- predict(model1, nnteste_pessoas, type = "class")
+```
+
+```{r}
+tabela_total <- cbind(nnteste_pessoas, nnprevisao_pessoas$net.result)
+
+names(tabela_total) <- c("Gender", "Height", "Weight", "Prev")
+
+tabela_total <- tabela_total %>% 
+  mutate(PrevDec = ifelse(Prev > 0.5, 1, 0))
+
+tabela_total
+
+table(tabela_total$Gender, tabela_total$PrevDec)
+
+```
+
+```{r}
+teste_pessoas %>% 
+  ggplot(aes(x = Height, y = Weight, color = Gender))+
+  geom_point()
+
+dfpessoas <- cbind(teste_pessoas, result_pessoas)
+
+dfpessoas %>% 
+  ggplot(aes(x = Height, y = Weight, color = result_pessoas))+
+  geom_point()
+
+tabela_total %>% 
+  ggplot(aes(x = Height, y = Weight, color = Prev))+
+  geom_point()
+```
+
+```{r}
+data(diamonds)
+diamantes <- diamonds 
+```
+
+```{r}
+linhas4 <- sample(1:nrow(diamantes), nrow(diamantes)*0.65)
+
+treino_diamantes <- diamantes[linhas4,]
+teste_diamantes <- diamantes[-linhas4,]
+```
+
+
+```{r}
+mod_diamantes <- rpart(cut~. , data = treino_diamantes)
+result_diamantes <- predict(mod_diamantes, teste_diamantes, type = "class") 
+
+table(teste_diamantes$cut, result_diamantes)
+sum(diag(table(teste_diamantes$cut, result_diamantes)))/sum(table(teste_diamantes$cut, result_diamantes))
+```
+
+```{r}
+load_image_file <- function(filename) {
+   ret = list()
+    f = file(filename,'rb')
+    readBin(f,'integer',n=1,size=4,endian='big')
+    ret$n = readBin(f,'integer',n=1,size=4,endian='big')
+    nrow = readBin(f,'integer',n=1,size=4,endian='big')
+    ncol = readBin(f,'integer',n=1,size=4,endian='big')
+    x = readBin(f,'integer',n=ret$n*nrow*ncol,size=1,signed=F)
+    ret$x = matrix(x, ncol=nrow*ncol, byrow=T)
+    close(f)
+    ret
+}
+
+load_label_file <- function(filename) {
+    f = file(filename,'rb')
+    readBin(f,'integer',n=1,size=4,endian='big')
+    n = readBin(f,'integer',n=1,size=4,endian='big')
+    y = readBin(f,'integer',n=n,size=1,signed=F)
+    close(f)
+    y
+}
+
+train <- load_image_file("C:/R/Machine_Learning/train-images-idx3-ubyte/train-images.idx3-ubyte")
+test <- load_image_file("C:/R/Machine_Learning/t10k-images-idx3-ubyte/t10k-images.idx3-ubyte")
+
+train$y <- load_label_file("C:/R/Machine_Learning/train-labels-idx1-ubyte/train-labels.idx1-ubyte")
+test$y <- load_label_file("C:/R/Machine_Learning/t10k-labels-idx1-ubyte/t10k-labels.idx1-ubyte")  
+```
+
+```{r}
+dftrainx <- as.data.frame(train$x)/255
+
+dftrainx <- data.frame(dftrainx, unlist(train$y))
+
+names(dftrainx) <- c(1:785)
+
+names(dftrainx) <- make.names(names(dftrainx))
+
+dftrainx$X785 <- as.character(dftrainx$X785)
+
+```
+
+```{r}
+model_hand_nn <- neuralnet(X785 ~., data = dftrainx, hidden = c(16,16), threshold = 1)
+```
+
+```{r}
+dftestx <- as.data.frame(test$x)/255
+
+dftestx <- data.frame(dftestx, resp = unlist(test$y))
+
+names(dftestx) <- c(1:785)
+
+names(dftestx) <- make.names(names(dftestx))
+
+dftestx$X785 <- as.character(dftestx$X785)
+
+```
+
+```{r}
+model_hand_ml <- rpart(as.character(X785)~. , data = dftrainx, control = rpart.control(minsplit = 10))
+```
+
+```{r}
+result_hand_ml <- predict(model_hand_ml, dftestx, type = "class") 
+```
+
+```{r}
+results <- data.frame(real = unlist(test$y), result_hand_ml)
+
+tb <- table(results[,1], results[,2])
+
+sum(diag(tb))/sum(tb)
+
+tb
+
+rm(tb)
+
+```
+
+```{r}
+plotresult <- function(n){
+  A <- matrix(test$x[n,]/255, byrow = TRUE, nrow = 28, ncol = 28)
+
+  A.df <- reshape2::melt(A, c("x", "y"), value.name = "z")
+  head(A.df)
+  ggplot(data=A.df,aes(x=x,y=y,fill=z))+
+    geom_tile()+
+    coord_flip()+
+    scale_x_reverse()+
+    labs(caption = paste("Previsto pelo Computador =", results[n,2]))
+}
+
+
+```
+
+
+```{r}
+plotresult(57)
+```
+
+```{r}
+plot(model_hand_ml)
+```
+
+
+
+
+
+
+
